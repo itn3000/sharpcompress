@@ -29,6 +29,13 @@ namespace SharpCompress.Common.Tar.Headers
 
         internal const int BLOCK_SIZE = 512;
 
+        void WriteStringBytesWithEncoding(string str, byte[] dest, int destoffset, Encoding encoding)
+        {
+            var bytecount = encoding.GetByteCount(str);
+            var charwritten = encoding.GetBytes(str, 0, str.Length, dest, destoffset);
+            dest[destoffset + bytecount] = 0;
+        }
+
         internal void Write(Stream output)
         {
             byte[] buffer = new byte[BLOCK_SIZE];
@@ -38,16 +45,18 @@ namespace SharpCompress.Common.Tar.Headers
             WriteOctalBytes(0, buffer, 116, 8); // group ID
 
             //ArchiveEncoding.UTF8.GetBytes("magic").CopyTo(buffer, 257);
-            if (Name.Length > 100)
+            if (ArchiveEncoding.GetEncoding().GetByteCount(Name) > 100)
             {
                 // Set mock filename and filetype to indicate the next block is the actual name of the file
                 WriteStringBytes("././@LongLink", buffer, 0, 100);
                 buffer[156] = (byte)EntryType.LongName;
-                WriteOctalBytes(Name.Length + 1, buffer, 124, 12);
+                WriteStringBytesWithEncoding(Name, buffer, 124, ArchiveEncoding.GetEncoding());
+                // WriteOctalBytes(Name.Length + 1, buffer, 124, 12);
             }
             else
             {
-                WriteStringBytes(Name, buffer, 0, 100);
+                WriteStringBytesWithEncoding(Name, buffer, 0, ArchiveEncoding.GetEncoding());
+                // WriteStringBytes(Name, buffer, 0, 100);
                 WriteOctalBytes(Size, buffer, 124, 12);
                 var time = (long)(LastModifiedTime.ToUniversalTime() - EPOCH).TotalSeconds;
                 WriteOctalBytes(time, buffer, 136, 12);

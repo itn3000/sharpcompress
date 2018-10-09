@@ -43,14 +43,45 @@ namespace SharpCompress.Test.Tar
         public void Tar_Finalize_Archive(bool finalizeArchive)
         {
             using (MemoryStream stream = new MemoryStream())
-            using (Stream content = File.OpenRead(Path.Combine(ORIGINAL_FILES_PATH, "jpg", "test.jpg"))) {
-                using (TarWriter writer = new TarWriter(stream, new TarWriterOptions(CompressionType.None, finalizeArchive)))             {
+            using (Stream content = File.OpenRead(Path.Combine(ORIGINAL_FILES_PATH, "jpg", "test.jpg")))
+            {
+                using (TarWriter writer = new TarWriter(stream, new TarWriterOptions(CompressionType.None, finalizeArchive)))
+                {
                     writer.Write("doesn't matter", content, null);
                 }
 
                 var paddedContentWithHeader = content.Length / 512 * 512 + 512 + 512;
                 var expectedStreamLength = finalizeArchive ? paddedContentWithHeader + 512 * 2 : paddedContentWithHeader;
                 Assert.Equal(expectedStreamLength, stream.Length);
+            }
+        }
+
+        [Fact]
+        public void Tar_Japanese_FileName()
+        {
+            var data = new byte[1];
+            var fname = new string(new char[1]{ (char)0x3042 });
+            using (var mstm = new MemoryStream())
+            {
+                var opts = new TarWriterOptions(CompressionType.None);
+                opts.ArchiveEncoding.Default = System.Text.Encoding.UTF8;
+                using (var tw = new TarWriter(mstm, opts))
+                {
+                    using (var dstm = new MemoryStream(data))
+                    {
+                        tw.Write(fname, dstm, System.DateTime.Now);
+                    }
+                }
+                using(var mstm2 = new MemoryStream(mstm.ToArray()))
+                {
+                    var ropts = new SharpCompress.Readers.ReaderOptions();
+                    ropts.ArchiveEncoding.Default = System.Text.Encoding.UTF8;
+                    using(var tr = new SharpCompress.Readers.Tar.TarReader(mstm2, ropts, CompressionType.None))
+                    {
+                        Assert.True(tr.MoveToNextEntry());
+                        Assert.Equal(fname, tr.Entry.Key);
+                    }
+                }
             }
         }
     }
