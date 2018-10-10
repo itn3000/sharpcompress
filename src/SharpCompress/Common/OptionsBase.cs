@@ -9,5 +9,14 @@ namespace SharpCompress.Common
         public bool LeaveStreamOpen { get; set; } = true;
 
         public ArchiveEncoding ArchiveEncoding { get; set; } = new ArchiveEncoding();
+        public OptionsBase(OptionsBase options)
+        {
+            LeaveStreamOpen = options.LeaveStreamOpen;
+            ArchiveEncoding = options.ArchiveEncoding;
+        }
+        public OptionsBase()
+        {
+            // default ctor
+        }
     }
 }

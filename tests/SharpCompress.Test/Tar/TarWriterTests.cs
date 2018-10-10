@@ -2,6 +2,7 @@
 using SharpCompress.Common;
 using SharpCompress.Writers.Tar;
 using Xunit;
+using System.Linq;
 
 namespace SharpCompress.Test.Tar
 {
@@ -56,11 +57,13 @@ namespace SharpCompress.Test.Tar
             }
         }
 
-        [Fact]
-        public void Tar_Japanese_FileName()
+        [Theory]
+        [InlineData(1, 0x3042)]
+        [InlineData(50, 0x3042)]
+        public void Tar_Japanese_FileName(int length, int codepoint)
         {
             var data = new byte[1];
-            var fname = new string(new char[1]{ (char)0x3042 });
+            var fname = new string(Enumerable.Range(0, length).Select(i => (char)codepoint).ToArray());
             using (var mstm = new MemoryStream())
             {
                 var opts = new TarWriterOptions(CompressionType.None);

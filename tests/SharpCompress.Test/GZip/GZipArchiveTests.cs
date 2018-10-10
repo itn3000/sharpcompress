@@ -17,10 +17,13 @@ namespace SharpCompress.Test.GZip
         [Fact]
         public void GZip_Archive_Generic()
         {
+            var opt = new SharpCompress.Readers.ReaderOptions();
+            opt.ArchiveEncoding.Default = System.Text.Encoding.UTF8;
             using (Stream stream = File.OpenRead(Path.Combine(TEST_ARCHIVES_PATH, "Tar.tar.gz")))
-            using (var archive = ArchiveFactory.Open(stream))
+            using (var archive = ArchiveFactory.Open(stream, opt))
             {
                 var entry = archive.Entries.First();
+                var extopts = new SharpCompress.Common.ExtractionOptions();
                 entry.WriteToFile(Path.Combine(SCRATCH_FILES_PATH, entry.Key));
             }
             CompareArchivesByPath(Path.Combine(SCRATCH_FILES_PATH, "Tar.tar"),

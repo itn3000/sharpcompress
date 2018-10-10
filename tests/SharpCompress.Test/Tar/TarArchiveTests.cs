@@ -138,7 +138,9 @@ namespace SharpCompress.Test.Tar
             using (var archive = TarArchive.Create())
             {
                 archive.AddAllFromDirectory(ORIGINAL_FILES_PATH);
-                archive.SaveTo(scratchPath, CompressionType.None);
+                var wopts = new WriterOptions(CompressionType.None);
+                wopts.ArchiveEncoding.Default = System.Text.Encoding.UTF8;
+                archive.SaveTo(scratchPath, wopts);
             }
             CompareArchivesByPath(unmodified, scratchPath);
         }

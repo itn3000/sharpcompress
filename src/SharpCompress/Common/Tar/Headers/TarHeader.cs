@@ -36,26 +36,34 @@ namespace SharpCompress.Common.Tar.Headers
             dest[destoffset + bytecount] = 0;
         }
 
+        System.Threading.ThreadLocal<byte[]> m_WriteBuffer = new System.Threading.ThreadLocal<byte[]>(() => new byte[BLOCK_SIZE]);
+
         internal void Write(Stream output)
         {
-            byte[] buffer = new byte[BLOCK_SIZE];
+            byte[] buffer = m_WriteBuffer.Value;
 
             WriteOctalBytes(511, buffer, 100, 8); // file mode
             WriteOctalBytes(0, buffer, 108, 8); // owner ID
             WriteOctalBytes(0, buffer, 116, 8); // group ID
 
+            var namebytes = ArchiveEncoding.Encode(Name);
+
             //ArchiveEncoding.UTF8.GetBytes("magic").CopyTo(buffer, 257);
-            if (ArchiveEncoding.GetEncoding().GetByteCount(Name) > 100)
+            if (namebytes.Length > 100)
             {
                 // Set mock filename and filetype to indicate the next block is the actual name of the file
                 WriteStringBytes("././@LongLink", buffer, 0, 100);
                 buffer[156] = (byte)EntryType.LongName;
-                WriteStringBytesWithEncoding(Name, buffer, 124, ArchiveEncoding.GetEncoding());
-                // WriteOctalBytes(Name.Length + 1, buffer, 124, 12);
+                WriteOctalBytes(namebytes.Length + 1, buffer, 124, 12);
             }
             else
             {
-                WriteStringBytesWithEncoding(Name, buffer, 0, ArchiveEncoding.GetEncoding());
+                Buffer.BlockCopy(namebytes, 0, buffer, 0, namebytes.Length);
+                for(int i = 0 ; i < 100 - namebytes.Length ; i++)
+                {
+                    buffer[namebytes.Length + i] = 0;
+                }
+                // WriteStringBytesWithEncoding(Name, buffer, 0, ArchiveEncoding.GetEncoding());
                 // WriteStringBytes(Name, buffer, 0, 100);
                 WriteOctalBytes(Size, buffer, 124, 12);
                 var time = (long)(LastModifiedTime.ToUniversalTime() - EPOCH).TotalSeconds;
@@ -77,17 +85,18 @@ namespace SharpCompress.Common.Tar.Headers
 
             output.Write(buffer, 0, buffer.Length);
 
-            if (Name.Length > 100)
+            if (namebytes.Length > 100)
             {
-                WriteLongFilenameHeader(output);
-                Name = Name.Substring(0, 100);
+                WriteLongFilenameHeader(output, namebytes);
+                // must not exceed 100 bytes after encoding
+                Name = ArchiveEncoding.Decode(namebytes, 0, 95);
                 Write(output);
             }
         }
 
-        private void WriteLongFilenameHeader(Stream output)
+        private void WriteLongFilenameHeader(Stream output, byte[] nameBytes)
         {
-            byte[] nameBytes = ArchiveEncoding.Encode(Name);
+            // byte[] nameBytes = ArchiveEncoding.Encode(Name);
             output.Write(nameBytes, 0, nameBytes.Length);
 
             // pad to multiple of BlockSize bytes, and make sure a terminating null is added
@@ -114,7 +123,19 @@ namespace SharpCompress.Common.Tar.Headers
             }
             else
             {
-                Name = ArchiveEncoding.Decode(buffer, 0, 100).TrimNulls();
+                bool isFound = false;
+                for(int i = 0;i<100;i++)
+                {
+                    if(buffer[i] == 0)
+                    {
+                        Name = ArchiveEncoding.Decode(buffer, 0, i).TrimNulls();
+                        isFound = true;
+                    }
+                }
+                if(!isFound)
+                {
+                    Name = ArchiveEncoding.Decode(buffer, 0, 100).TrimNulls();
+                }
             }
 
             EntryType = ReadEntryType(buffer);

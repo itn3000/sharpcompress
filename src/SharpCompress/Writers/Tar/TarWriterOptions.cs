@@ -16,8 +16,10 @@ namespace SharpCompress.Writers.Tar
             FinalizeArchiveOnClose = finalizeArchiveOnClose;
         }
 
-        internal TarWriterOptions(WriterOptions options) : this(options.CompressionType, true)
+        internal TarWriterOptions(WriterOptions options) : base(options)
         {
+            this.CompressionType = options.CompressionType;
+            this.FinalizeArchiveOnClose = true;
         }
     }
 }

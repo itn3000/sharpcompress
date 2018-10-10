@@ -12,7 +12,7 @@ namespace SharpCompress.Writers.Zip
         }
 
         internal ZipWriterOptions(WriterOptions options)
-            : base(options.CompressionType)
+            : base(options)
         {
             LeaveStreamOpen = options.LeaveStreamOpen;
             ArchiveEncoding = options.ArchiveEncoding;
